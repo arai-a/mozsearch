@@ -6,14 +6,15 @@ set -o pipefail # Check all commands in a pipeline
 
 if [ $# -ne 2 ]
 then
-    echo "Usage: js-analyze.sh config-file.json tree_name"
+    echo "Usage: js-analyze.sh"
     exit 1
 fi
 
-CONFIG_FILE=$(realpath $1)
-TREE_NAME=$2
+TOTAL_FILES=$(cat $INDEX_ROOT/js-files | wc -l)
+JOB_COUNT=8
 
-cat $INDEX_ROOT/js-files | \
-    parallel --halt 2 js -f $MOZSEARCH_PATH/scripts/js-analyze.js -- {#} \
-    $MOZSEARCH_PATH $FILES_ROOT/{} {} ">" $INDEX_ROOT/analysis/{}
+parallel --jobs $JOB_COUNT --pipepart -a $INDEX_ROOT/js-files \
+    --block -1 --halt 2 \
+    js -f $MOZSEARCH_PATH/scripts/js-analyze.js -- \
+    {#} $JOB_COUNT $TOTAL_FILES $MOZSEARCH_PATH $FILES_ROOT $INDEX_ROOT/analysis
 echo $?

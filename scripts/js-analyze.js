@@ -548,6 +548,15 @@ let Analyzer = {
   // with empty strings.
   _lines: [],
 
+  resetState() {
+    this.symbols = new SymbolTable();
+    this.symbolTableStack = [];
+    this.nameForThis = null;
+    this.className = null;
+    this.contextStack = [];
+    this._lines = [];
+  },
+
   /**
    * Given a position, find the first instance of the given string starting
    * after the (exclusive, end) position.
@@ -2043,8 +2052,11 @@ class XBLParser extends XMLParser {
 //
 // js-analyze.js is executed for single file, and the code path
 // "analyzeFile -> analyze* -> loadSax" is taken at most once.
-function loadSax()
+function ensureSax()
 {
+  if ("sax" in globalThis) {
+    return;
+  }
   load(mozSearchRoot + "/sax/sax.js");
 }
 
@@ -2052,7 +2064,7 @@ function analyzeXBL(filename)
 {
   let text = preprocess(filename, line => `<!--${line}-->`);
 
-  loadSax();
+  ensureSax();
   let parser = sax.parser(false, {trim: false, normalize: false, xmlns: true, position: true});
 
   new XBLParser(filename, parser);
@@ -2126,7 +2138,7 @@ function analyzeXUL(filename)
     text = "<root>" + text + "</root>";
   }
 
-  loadSax();
+  ensureSax();
   let parser = sax.parser(false, {trim: false, normalize: false, xmlns: true, position: true, noscript: true});
 
   let parser2 = new XULParser(filename, parser);
@@ -2145,7 +2157,7 @@ function analyzeHTML(filename)
     text = "<root>" + text + "</root>";
   }
 
-  loadSax();
+  ensureSax();
   let parser = sax.parser(false, {trim: false, normalize: false, xmlns: true, position: true, noscript: false});
 
   let parser2 = new HTMLParser(filename, parser);
@@ -2373,11 +2385,45 @@ function analyzeFile(filename)
   }
 }
 
-fileIndex = scriptArgs[0];
-mozSearchRoot = scriptArgs[1];
-localFile = scriptArgs[2];
-sourcePath = scriptArgs[3];
 
-printFileTarget(sourcePath);
+function resetState() {
+  gParsedAs = "script";
+  gFilename = "";
+  gIncludeUsed = false;
+  gCouldBeJson = false;
+  gAttrName = "";
+  nextSymId = 0;
+  Analyzer.resetState();
+}
 
-analyzeFile(localFile);
+const jobIndex = parseInt(scriptArgs[0]);
+const jobCount = parseInt(scriptArgs[1]);
+const totalFiles = parseInt(scriptArgs[2]);
+mozSearchRoot = scriptArgs[3];
+const localRoot = scriptArgs[4];
+const analysisRoot = scriptArgs[5];
+
+// + 1 to avoid overlap between chunks.
+fileIndex = (Math.round(totalFiles / jobCount) + 1) * jobIndex;
+
+while (true) {
+  const sourcePath = readline();
+  if (!sourcePath) {
+    break;
+  }
+
+  resetState();
+
+  localFile = localRoot + "/" + sourcePath;
+  const analysisFile = analysisRoot + "/" + sourcePath;
+
+  const origOut = os.file.redirect(analysisFile);
+  
+  printFileTarget(sourcePath);
+
+  analyzeFile(localFile);
+
+  os.file.close(os.file.redirect(origOut));
+
+  fileIndex++;
+}
