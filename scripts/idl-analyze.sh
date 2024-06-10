@@ -58,6 +58,10 @@ if [ ! -d "${TREE_PYMODULES}" ]; then
     popd
 fi
 
+pushd "${TREE_PYMODULES}"
+cp "$MOZSEARCH_PATH/WebIDL.py" ./
+popd
+
 export PYTHONPATH="${TREE_PYMODULES}"
 
 cat $INDEX_ROOT/idl-files | \
