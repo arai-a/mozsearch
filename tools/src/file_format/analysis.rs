@@ -316,6 +316,7 @@ pub enum BindingSlotKind {
     InterfaceName,
     /// Callable.
     Method,
+    MethodImpl,
     /// A field/attribute/property that has JS XPIDL or WebIDL semantics where we only
     /// have a single symbol name but it could correspond to a property or any
     /// combination of a getter/setter.
@@ -324,8 +325,10 @@ pub enum BindingSlotKind {
     Const,
     /// An attribute for which we have a distinct symbol for a getter.
     Getter,
+    GetterImpl,
     /// An attribute for which we have a distinct symbol for a setter.
     Setter,
+    SetterImpl,
     /// An RPC/IPC send method which will have a corresponding Recv counterpart.
     Send,
     /// An RPC/IPC receive method which will have a corresponding Send
