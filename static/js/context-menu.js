@@ -53,6 +53,49 @@ var ContextMenu = new (class ContextMenu {
     };
   }
 
+  sortBindingSlots(bindingSlots) {
+    return bindingSlots.slice().sort((a, b) => {
+      if (a.slotKind < b.slotKind) {
+        return -1;
+      }
+      if (a.slotKind > b.slotKind) {
+        return 1;
+      }
+      return 0;
+    });
+  }
+
+  hasCPPBindingAndImpl(bindingSlots) {
+    let hasBinding = false;
+    let hasImpl = false;
+    for (const slot of bindingSlots) {
+      if (!slot?.slotKind) {
+        continue;
+      }
+      if (slot.slotLang != "cpp") {
+        continue;
+      }
+      if (slot.slotKind.endsWith("_impl")) {
+        hasImpl = true;
+      } else {
+        hasBinding = true;
+      }
+    }
+    return hasBinding && hasImpl;
+  }
+
+  formatBindingSlotKind(slot, hasCPPBindingAndImpl) {
+    if (!hasCPPBindingAndImpl || slot.slotLang != "cpp") {
+      return slot.slotKind;
+    }
+
+    if (slot.slotKind.endsWith("_impl")) {
+      return slot.slotKind.replace("_impl", "") + " impl";
+    }
+
+    return slot.slotKind + " binding";
+  }
+
   tryShowOnClick(event) {
     if (Settings.fancyBar.enabled) {
       if (this.selectedToken) {
@@ -305,11 +348,15 @@ var ContextMenu = new (class ContextMenu {
 
             // If our current symbol is an IPC Send method, offer a direct jump to the Recv def
             if (slotOwner?.slotKind === "send" && ownerJumpref) {
-              for (const slot of ownerJumpref?.meta?.bindingSlots) {
+              const bindingSlots = this.sortBindingSlots(ownerJumpref?.meta?.bindingSlots);
+              const hasCPPBindingAndImpl = this.hasCPPBindingAndImpl(bindingSlots);
+
+              for (const slot of bindingSlots) {
                 if (slot.slotKind === "recv") {
                   let recvJumpref = SYM_INFO[slot.sym];
                   if (recvJumpref?.pretty) {
-                    directDefJumpify(recvJumpref, `${implKind}${maybeLang} ${slot.slotKind} ${recvJumpref.pretty}`);
+                    const kind = this.formatBindingSlotKind(slot, hasCPPBindingAndImpl);
+                    directDefJumpify(recvJumpref, `${implKind}${maybeLang} ${kind} ${recvJumpref.pretty}`);
                   }
                 }
               }
@@ -330,8 +377,11 @@ var ContextMenu = new (class ContextMenu {
             implKind = "IDL";
           }
 
+          const bindingSlots = this.sortBindingSlots(symInfo.meta.bindingSlots);
+          const hasCPPBindingAndImpl = this.hasCPPBindingAndImpl(bindingSlots);
+
           let allSearchSyms = [];
-          for (const slot of symInfo.meta.bindingSlots) {
+          for (const slot of bindingSlots) {
             // XXX Ignore no_crossref data that's currently not useful/used.
             let slotJumpref = SYM_INFO[slot.sym];
             // (we do handle the pretty not existing below)
@@ -354,8 +404,9 @@ var ContextMenu = new (class ContextMenu {
 
             // Favor the slot's pretty if available.
             const effectivePretty = slotJumpref?.pretty || symInfo.pretty;
+            const kind = this.formatBindingSlotKind(slot, hasCPPBindingAndImpl);
             let slotPretty =
-              `${implKind}${maybeLang} ${slot.slotKind} ${effectivePretty}`;
+              `${implKind}${maybeLang} ${kind} ${effectivePretty}`;
             searches.push([slotPretty, slot.sym]);
             allSearchSyms.push(slot.sym);
 
