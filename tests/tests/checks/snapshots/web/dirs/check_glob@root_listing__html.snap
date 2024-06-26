@@ -655,6 +655,12 @@ Spread over multiple lines.
         </tr>
 
         <tr>
+          <td><a href="/tests/source/uitests" class="mimetype-fixed-container mimetype-icon-folder">uitests</a></td>
+          <td class="description"><a href="/tests/source/uitests" title=""></td>
+          <td><a href="/tests/source/uitests"></a></td>
+        </tr>
+
+        <tr>
           <td><a href="/tests/source/urlmap" class="mimetype-fixed-container mimetype-icon-folder">urlmap</a></td>
           <td class="description"><a href="/tests/source/urlmap" title=""></td>
           <td><a href="/tests/source/urlmap"></a></td>

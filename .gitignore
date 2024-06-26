@@ -29,3 +29,5 @@ addons
 /tree-configs/*
 !/tree-configs/README.md
 .direnv
+uitest-env
+mozsearch-firefox*
