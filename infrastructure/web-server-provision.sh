@@ -24,6 +24,10 @@ exec > >(tee -a update-log) 2>&1
 
 date
 
+echo WEB
+echo $#
+echo "$@"
+
 if [ $# != 4 ]
 then
     echo "usage: $0 <mozsearch-repo> <mozsearch-rev> <config-repo> <config-rev>"

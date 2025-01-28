@@ -61,6 +61,10 @@ exec > >(tee -a update-log) 2>&1
 
 date
 
+echo INDEXER
+echo $#
+echo "$@"
+
 if [ $# != 4 ]
 then
     echo "usage: $0 <mozsearch-repo> <mozsearch-rev> <config-repo> <config-rev>"
