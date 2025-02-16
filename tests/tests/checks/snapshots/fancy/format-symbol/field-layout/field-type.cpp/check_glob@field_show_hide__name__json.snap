@@ -447,21 +447,81 @@ expression: "&to_value(sttl).unwrap()"
         },
         "T_JS::GCHashMap": {
           "sym": "T_JS::GCHashMap",
-          "pretty": "T_JS::GCHashMap",
+          "pretty": "JS::GCHashMap",
+          "meta": {
+            "structured": 1,
+            "pretty": "JS::GCHashMap",
+            "sym": "T_JS::GCHashMap",
+            "type_pretty": null,
+            "kind": "class",
+            "subsystem": null,
+            "implKind": "",
+            "sizeBytes": null,
+            "alignmentBytes": null,
+            "ownVFPtrBytes": null,
+            "bindingSlots": [],
+            "ontologySlots": [],
+            "supers": [],
+            "methods": [],
+            "fields": [],
+            "overrides": [],
+            "props": [],
+            "variants": []
+          },
           "jumps": {
             "def": "field-layout/field-type.h#26"
           }
         },
         "T_JS::Rooted": {
           "sym": "T_JS::Rooted",
-          "pretty": "T_JS::Rooted",
+          "pretty": "JS::Rooted",
+          "meta": {
+            "structured": 1,
+            "pretty": "JS::Rooted",
+            "sym": "T_JS::Rooted",
+            "type_pretty": null,
+            "kind": "class",
+            "subsystem": null,
+            "implKind": "",
+            "sizeBytes": null,
+            "alignmentBytes": null,
+            "ownVFPtrBytes": null,
+            "bindingSlots": [],
+            "ontologySlots": [],
+            "supers": [],
+            "methods": [],
+            "fields": [],
+            "overrides": [],
+            "props": [],
+            "variants": []
+          },
           "jumps": {
             "def": "field-layout/field-type.h#8"
           }
         },
         "T_JS::RootedVector": {
           "sym": "T_JS::RootedVector",
-          "pretty": "T_JS::RootedVector",
+          "pretty": "JS::RootedVector",
+          "meta": {
+            "structured": 1,
+            "pretty": "JS::RootedVector",
+            "sym": "T_JS::RootedVector",
+            "type_pretty": null,
+            "kind": "class",
+            "subsystem": null,
+            "implKind": "",
+            "sizeBytes": null,
+            "alignmentBytes": null,
+            "ownVFPtrBytes": null,
+            "bindingSlots": [],
+            "ontologySlots": [],
+            "supers": [],
+            "methods": [],
+            "fields": [],
+            "overrides": [],
+            "props": [],
+            "variants": []
+          },
           "jumps": {
             "def": "field-layout/field-type.h#18"
           }
@@ -536,14 +596,76 @@ expression: "&to_value(sttl).unwrap()"
         },
         "T_field_layout::field_type::Container1": {
           "sym": "T_field_layout::field_type::Container1",
-          "pretty": "T_field_layout::field_type::Container1",
+          "pretty": "field_layout::field_type::Container1",
+          "meta": {
+            "structured": 1,
+            "pretty": "field_layout::field_type::Container1",
+            "sym": "T_field_layout::field_type::Container1",
+            "type_pretty": null,
+            "kind": "struct",
+            "subsystem": null,
+            "implKind": "",
+            "sizeBytes": null,
+            "alignmentBytes": null,
+            "ownVFPtrBytes": null,
+            "bindingSlots": [],
+            "ontologySlots": [],
+            "supers": [],
+            "methods": [],
+            "fields": [
+              {
+                "lineRange": "#16",
+                "pretty": "field_layout::field_type::Container1::a",
+                "sym": "F_<T_field_layout::field_type::Container1>_a",
+                "type": "type-parameter-0-0",
+                "typesym": "",
+                "offsetBytes": 0,
+                "bitPositions": null,
+                "sizeBytes": null
+              }
+            ],
+            "overrides": [],
+            "props": [],
+            "variants": []
+          },
           "jumps": {
             "def": "field-layout/field-type.cpp#15"
           }
         },
         "T_field_layout::field_type::Container2": {
           "sym": "T_field_layout::field_type::Container2",
-          "pretty": "T_field_layout::field_type::Container2",
+          "pretty": "field_layout::field_type::Container2",
+          "meta": {
+            "structured": 1,
+            "pretty": "field_layout::field_type::Container2",
+            "sym": "T_field_layout::field_type::Container2",
+            "type_pretty": null,
+            "kind": "struct",
+            "subsystem": null,
+            "implKind": "",
+            "sizeBytes": null,
+            "alignmentBytes": null,
+            "ownVFPtrBytes": null,
+            "bindingSlots": [],
+            "ontologySlots": [],
+            "supers": [],
+            "methods": [],
+            "fields": [
+              {
+                "lineRange": "#26",
+                "pretty": "field_layout::field_type::Container2::a",
+                "sym": "F_<T_field_layout::field_type::Container2>_a",
+                "type": "type-parameter-0-0",
+                "typesym": "",
+                "offsetBytes": 0,
+                "bitPositions": null,
+                "sizeBytes": null
+              }
+            ],
+            "overrides": [],
+            "props": [],
+            "variants": []
+          },
           "jumps": {
             "def": "field-layout/field-type.cpp#25"
           }
@@ -1019,7 +1141,27 @@ expression: "&to_value(sttl).unwrap()"
         },
         "T_js::ProtectedDataNoCheckArgs": {
           "sym": "T_js::ProtectedDataNoCheckArgs",
-          "pretty": "T_js::ProtectedDataNoCheckArgs",
+          "pretty": "js::ProtectedDataNoCheckArgs",
+          "meta": {
+            "structured": 1,
+            "pretty": "js::ProtectedDataNoCheckArgs",
+            "sym": "T_js::ProtectedDataNoCheckArgs",
+            "type_pretty": null,
+            "kind": "class",
+            "subsystem": null,
+            "implKind": "",
+            "sizeBytes": null,
+            "alignmentBytes": null,
+            "ownVFPtrBytes": null,
+            "bindingSlots": [],
+            "ontologySlots": [],
+            "supers": [],
+            "methods": [],
+            "fields": [],
+            "overrides": [],
+            "props": [],
+            "variants": []
+          },
           "jumps": {
             "def": "field-layout/field-type.h#35"
           }

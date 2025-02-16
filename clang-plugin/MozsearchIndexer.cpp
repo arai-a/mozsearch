@@ -1262,23 +1262,47 @@ public:
     Heuristic = 1 << 3,
   };
 
+  enum class LayoutHandling {
+    // Emit the layout information (size, offset, etc) and the other fields.
+    // This should be used when the struct is not templatized.
+    UseLayout,
+
+    // Skip the layout information and emit other fields.
+    // This should be used when the struct is templatized and the
+    // layout is not known.
+    SkipLayout,
+
+    // Only emit the layout information.
+    // This should be used when the struct is templatized and it's
+    // emitted as a specialization as a part of subclass.
+    LayoutOnly,
+  };
+
   void emitStructuredRecordInfo(llvm::json::OStream &J, SourceLocation Loc,
-                                const RecordDecl *decl) {
-    J.attribute("kind",
-                TypeWithKeyword::getTagTypeKindName(decl->getTagKind()));
+                                const RecordDecl *decl,
+                                LayoutHandling layoutHandling = LayoutHandling::UseLayout) {
+    if (layoutHandling != LayoutHandling::LayoutOnly) {
+      J.attribute("kind",
+                  TypeWithKeyword::getTagTypeKindName(decl->getTagKind()));
+    }
 
     const ASTContext &C = *AstContext;
-    const ASTRecordLayout &Layout = C.getASTRecordLayout(decl);
+    const ASTRecordLayout *Layout = nullptr;
+    if (layoutHandling != LayoutHandling::SkipLayout) {
+      Layout = &C.getASTRecordLayout(decl);
+    }
 
-    J.attribute("sizeBytes", Layout.getSize().getQuantity());
-    J.attribute("alignmentBytes", Layout.getAlignment().getQuantity());
+    if (Layout) {
+      J.attribute("sizeBytes", Layout->getSize().getQuantity());
+      J.attribute("alignmentBytes", Layout->getAlignment().getQuantity());
+    }
 
     emitBindingAttributes(J, *decl);
 
     auto cxxDecl = dyn_cast<CXXRecordDecl>(decl);
 
     if (cxxDecl) {
-      if (Layout.hasOwnVFPtr()) {
+      if (Layout && Layout->hasOwnVFPtr()) {
         // Encode the size of virtual function table pointer
         // instead of just true/false, for 2 reasons:
         //  * having the size here is easier for the consumer
@@ -1294,18 +1318,32 @@ public:
       for (const CXXBaseSpecifier &Base : cxxDecl->bases()) {
         const CXXRecordDecl *BaseDecl = Base.getType()->getAsCXXRecordDecl();
 
+        if (!BaseDecl) {
+          // If the base class is dependent of template parameters and
+          // not yet fixed, skip it.
+          // Those information will be emitted in the subclass that has
+          // fixed template parameters.
+          continue;
+        }
+
         J.objectBegin();
 
         J.attribute("sym", getMangledName(CurMangleContext, BaseDecl));
 
-        if (Base.isVirtual()) {
-          CharUnits superOffsetBytes = Layout.getVBaseClassOffset(BaseDecl);
-          J.attribute("offsetBytes", superOffsetBytes.getQuantity());
-        } else {
-          CharUnits superOffsetBytes = Layout.getBaseClassOffset(BaseDecl);
-          J.attribute("offsetBytes", superOffsetBytes.getQuantity());
+        if (Layout) {
+          if (Base.isVirtual()) {
+            CharUnits superOffsetBytes = Layout->getVBaseClassOffset(BaseDecl);
+            J.attribute("offsetBytes", superOffsetBytes.getQuantity());
+          } else {
+            CharUnits superOffsetBytes = Layout->getBaseClassOffset(BaseDecl);
+            J.attribute("offsetBytes", superOffsetBytes.getQuantity());
+          }
         }
 
+        // NOTE: This property is necessary also for LayoutOnly case for the
+        //       case where the base class itself is the template parameter
+        //       and the original class declaration doesn't the reference to
+        //       the base class.
         J.attributeBegin("props");
         J.arrayBegin();
         if (Base.isVirtual()) {
@@ -1314,54 +1352,88 @@ public:
         J.arrayEnd();
         J.attributeEnd();
 
+        if (layoutHandling != LayoutHandling::SkipLayout) {
+          const Type* ty = Base.getType().getTypePtr();
+
+          bool isSpecialization = false;
+
+          // The case where the base class is a template parameter.
+          if (const auto* subst = dyn_cast<const SubstTemplateTypeParmType>(ty)) {
+            const ClassTemplateSpecializationDecl* specialization = dyn_cast<const ClassTemplateSpecializationDecl>(subst->getAssociatedDecl());
+            if (specialization) {
+              isSpecialization = true;
+            }
+          }
+
+          // The case where the base class is templatized.
+          if (const auto* elaborated = dyn_cast<const ElaboratedType>(ty)) {
+            const TemplateSpecializationType* specialization = dyn_cast<const TemplateSpecializationType>(elaborated->desugar().getTypePtr());
+            if (specialization) {
+              isSpecialization = true;
+            }
+          }
+
+          if (isSpecialization) {
+            J.attributeBegin("specialization");
+            J.objectBegin();
+
+            emitStructuredRecordInfo(J, Loc, BaseDecl,
+                                     LayoutHandling::LayoutOnly);
+            J.objectEnd();
+            J.attributeEnd();
+          }
+        }
+
         J.objectEnd();
       }
       J.arrayEnd();
       J.attributeEnd();
 
-      J.attributeBegin("methods");
-      J.arrayBegin();
-      for (const CXXMethodDecl *MethodDecl : cxxDecl->methods()) {
-        J.objectBegin();
-
-        J.attribute("pretty", getQualifiedName(MethodDecl));
-        J.attribute("sym", getMangledName(CurMangleContext, MethodDecl));
-
-        // TODO: Better figure out what to do for non-isUserProvided methods
-        // which means there's potentially semantic data that doesn't correspond
-        // to a source location in the source.  Should we be emitting
-        // structured info for those when we're processing the class here?
-
-        J.attributeBegin("props");
+      if (layoutHandling != LayoutHandling::LayoutOnly) {
+        J.attributeBegin("methods");
         J.arrayBegin();
-        if (MethodDecl->isStatic()) {
-          J.value("static");
-        }
-        if (MethodDecl->isInstance()) {
-          J.value("instance");
-        }
-        if (MethodDecl->isVirtual()) {
-          J.value("virtual");
-        }
-        if (MethodDecl->isUserProvided()) {
-          J.value("user");
-        }
-        if (MethodDecl->isDefaulted()) {
-          J.value("defaulted");
-        }
-        if (MethodDecl->isDeleted()) {
-          J.value("deleted");
-        }
-        if (MethodDecl->isConstexpr()) {
-          J.value("constexpr");
+        for (const CXXMethodDecl *MethodDecl : cxxDecl->methods()) {
+          J.objectBegin();
+
+          J.attribute("pretty", getQualifiedName(MethodDecl));
+          J.attribute("sym", getMangledName(CurMangleContext, MethodDecl));
+
+          // TODO: Better figure out what to do for non-isUserProvided methods
+          // which means there's potentially semantic data that doesn't correspond
+          // to a source location in the source.  Should we be emitting
+          // structured info for those when we're processing the class here?
+
+          J.attributeBegin("props");
+          J.arrayBegin();
+          if (MethodDecl->isStatic()) {
+            J.value("static");
+          }
+          if (MethodDecl->isInstance()) {
+            J.value("instance");
+          }
+          if (MethodDecl->isVirtual()) {
+            J.value("virtual");
+          }
+          if (MethodDecl->isUserProvided()) {
+            J.value("user");
+          }
+          if (MethodDecl->isDefaulted()) {
+            J.value("defaulted");
+          }
+          if (MethodDecl->isDeleted()) {
+            J.value("deleted");
+          }
+          if (MethodDecl->isConstexpr()) {
+            J.value("constexpr");
+          }
+          J.arrayEnd();
+          J.attributeEnd();
+
+          J.objectEnd();
         }
         J.arrayEnd();
         J.attributeEnd();
-
-        J.objectEnd();
       }
-      J.arrayEnd();
-      J.attributeEnd();
     }
 
     FileID structFileID = SM.getFileID(Loc);
@@ -1375,13 +1447,13 @@ public:
       const FieldDecl &Field = **It;
       auto sourceRange =
           SM.getExpansionRange(Field.getSourceRange()).getAsRange();
-      uint64_t localOffsetBits = Layout.getFieldOffset(iField);
-      CharUnits localOffsetBytes = C.toCharUnitsFromBits(localOffsetBits);
 
       J.objectBegin();
-      J.attribute("lineRange",
-                  pathAndLineRangeToString(structFileID, sourceRange));
-      J.attribute("pretty", getQualifiedName(&Field));
+      if (layoutHandling != LayoutHandling::LayoutOnly) {
+        J.attribute("lineRange",
+                    pathAndLineRangeToString(structFileID, sourceRange));
+        J.attribute("pretty", getQualifiedName(&Field));
+      }
       J.attribute("sym", getMangledName(CurMangleContext, &Field));
 
       QualType FieldType = Field.getType();
@@ -1404,30 +1476,36 @@ public:
       if (tagDecl) {
         J.attribute("typesym", getMangledName(CurMangleContext, tagDecl));
       }
-      J.attribute("offsetBytes", localOffsetBytes.getQuantity());
-      if (Field.isBitField()) {
-        J.attributeBegin("bitPositions");
-        J.objectBegin();
 
-        J.attribute("begin",
-                    unsigned(localOffsetBits - C.toBits(localOffsetBytes)));
-        J.attribute("width", Field.getBitWidthValue(C));
+      if (Layout) {
+        uint64_t localOffsetBits = Layout->getFieldOffset(iField);
+        CharUnits localOffsetBytes = C.toCharUnitsFromBits(localOffsetBits);
 
-        J.objectEnd();
-        J.attributeEnd();
-      } else {
-        // Try and get the field as a record itself so we can know its size, but
-        // we don't actually want to recurse into it.
-        if (auto FieldRec = Field.getType()->getAs<RecordType>()) {
-          auto const &FieldLayout = C.getASTRecordLayout(FieldRec->getDecl());
-          J.attribute("sizeBytes", FieldLayout.getSize().getQuantity());
+        J.attribute("offsetBytes", localOffsetBytes.getQuantity());
+        if (Field.isBitField()) {
+          J.attributeBegin("bitPositions");
+          J.objectBegin();
+
+          J.attribute("begin",
+                      unsigned(localOffsetBits - C.toBits(localOffsetBytes)));
+          J.attribute("width", Field.getBitWidthValue(C));
+
+          J.objectEnd();
+          J.attributeEnd();
         } else {
-          // We were unable to get it as a record, which suggests it's a normal
-          // type, in which case let's just ask for the type size.  (Maybe this
-          // would also work for the above case too?)
-          uint64_t typeSizeBits = C.getTypeSize(Field.getType());
-          CharUnits typeSizeBytes = C.toCharUnitsFromBits(typeSizeBits);
-          J.attribute("sizeBytes", typeSizeBytes.getQuantity());
+          // Try and get the field as a record itself so we can know its size, but
+          // we don't actually want to recurse into it.
+          if (auto FieldRec = Field.getType()->getAs<RecordType>()) {
+            auto const &FieldLayout = C.getASTRecordLayout(FieldRec->getDecl());
+            J.attribute("sizeBytes", FieldLayout.getSize().getQuantity());
+          } else {
+            // We were unable to get it as a record, which suggests it's a normal
+            // type, in which case let's just ask for the type size.  (Maybe this
+            // would also work for the above case too?)
+            uint64_t typeSizeBits = C.getTypeSize(Field.getType());
+            CharUnits typeSizeBytes = C.toCharUnitsFromBits(typeSizeBits);
+            J.attribute("sizeBytes", typeSizeBytes.getQuantity());
+          }
         }
       }
       J.objectEnd();
@@ -1594,7 +1672,8 @@ public:
     emitBindingAttributes(J, *decl);
   }
 
-  void emitStructuredInfo(SourceLocation Loc, const NamedDecl *decl) {
+  void emitStructuredInfo(SourceLocation Loc, const NamedDecl *decl,
+                          LayoutHandling layoutHandling = LayoutHandling::UseLayout) {
     std::string json_str;
     llvm::raw_string_ostream ros(json_str);
     llvm::json::OStream J(ros);
@@ -1610,7 +1689,7 @@ public:
     J.attribute("sym", getMangledName(CurMangleContext, decl));
 
     if (const RecordDecl *RD = dyn_cast<RecordDecl>(decl)) {
-      emitStructuredRecordInfo(J, Loc, RD);
+      emitStructuredRecordInfo(J, Loc, RD, layoutHandling);
     } else if (const EnumDecl *ED = dyn_cast<EnumDecl>(decl)) {
       emitStructuredEnumInfo(J, ED);
     } else if (const EnumConstantDecl *ECD = dyn_cast<EnumConstantDecl>(decl)) {
@@ -2145,18 +2224,17 @@ public:
 
     // In-progress structured info emission.
     if (RecordDecl *D2 = dyn_cast<RecordDecl>(D)) {
-      if (D2->isThisDeclarationADefinition() &&
-          // XXX getASTRecordLayout doesn't work for dependent types, so we
-          // avoid calling into emitStructuredInfo for now if there's a
-          // dependent type or if we're in any kind of template context.  This
-          // should be re-evaluated once this is working for normal classes and
-          // we can better evaluate what is useful.
-          !D2->isDependentType() && !TemplateStack) {
+      if (D2->isThisDeclarationADefinition()) {
+        auto layoutHandling = LayoutHandling::UseLayout;
+        if (D2->isDependentType() || TemplateStack) {
+          layoutHandling = LayoutHandling::SkipLayout;
+        }
+
         if (auto *D3 = dyn_cast<CXXRecordDecl>(D2)) {
           findBindingToJavaClass(*AstContext, *D3);
           findBoundAsJavaClasses(*AstContext, *D3);
         }
-        emitStructuredInfo(ExpansionLoc, D2);
+        emitStructuredInfo(ExpansionLoc, D2, layoutHandling);
       }
     }
     if (EnumDecl *D2 = dyn_cast<EnumDecl>(D)) {
