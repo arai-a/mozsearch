@@ -17,7 +17,7 @@ use super::{
 };
 
 use crate::file_format::analysis::{
-    AnalysisStructured, StructuredBitPositionInfo, StructuredFieldInfo,
+    AnalysisStructured, StructuredBitPositionInfo, StructuredSpecializationInfo,
 };
 
 use crate::abstract_server::{AbstractServer, ErrorDetails, ErrorLayer, Result, ServerError};
@@ -89,15 +89,15 @@ struct Field {
     class_end_offset: Option<u32>,
     field_id: Option<FieldId>,
     field_type_syms: Option<String>,
-    type_pretty: String,
     pretty: String,
+    type_pretty: String,
     def_path: String,
     start_lineno: u64,
     end_lineno: u64,
     hole_bytes: Option<u32>,
     hole_after_base: bool,
     end_padding_bytes: Option<u32>,
-    offset_bytes: u32,
+    offset_bytes: Option<u32>,
     bit_positions: Option<StructuredBitPositionInfo>,
     size_bytes: Option<u32>,
 }
@@ -107,37 +107,45 @@ impl Field {
     fn new(
         class_id: ClassId,
         class_traversal_id: TraversalId,
-        class_offset: u32,
+        class_offset: Option<u32>,
         class_size: Option<u32>,
         field_id: FieldId,
         field_type_syms: String,
         struct_def_path: &Option<String>,
         identifier_lineno: u64,
-        info: &StructuredFieldInfo,
+        line_range: String,
+        pretty: String,
+        type_pretty: String,
+        offset_bytes: Option<u32>,
+        bit_positions: Option<StructuredBitPositionInfo>,
+        size_bytes: Option<u32>,
     ) -> Self {
-        let (def_path, start_lineno, end_lineno) = Self::parse_path_and_line_range(
-            info.line_range.to_string(),
-            struct_def_path,
-            identifier_lineno,
-        );
+        let (def_path, start_lineno, end_lineno) =
+            Self::parse_path_and_line_range(line_range, struct_def_path, identifier_lineno);
 
         Self {
             class_id,
             class_traversal_id,
-            class_end_offset: class_size.map(|size| class_offset + size),
+            class_end_offset: match (class_offset, class_size) {
+                (Some(a), Some(b)) => Some(a + b),
+                _ => None,
+            },
             field_id: Some(field_id),
             field_type_syms: Some(field_type_syms),
-            type_pretty: info.type_pretty.to_string(),
-            pretty: info.pretty.to_string(),
+            pretty: pretty,
+            type_pretty: type_pretty,
             def_path,
             start_lineno,
             end_lineno,
             hole_bytes: None,
             hole_after_base: false,
             end_padding_bytes: None,
-            offset_bytes: class_offset + info.offset_bytes.unwrap_or(0),
-            bit_positions: info.bit_positions.clone(),
-            size_bytes: info.size_bytes,
+            offset_bytes: match (class_offset, offset_bytes) {
+                (Some(a), Some(b)) => Some(a + b),
+                _ => None,
+            },
+            bit_positions: bit_positions,
+            size_bytes: size_bytes,
         }
     }
 
@@ -180,18 +188,21 @@ impl Field {
     fn new_vtable(
         class_id: ClassId,
         class_traversal_id: TraversalId,
-        class_offset: u32,
+        class_offset: Option<u32>,
         class_size: u32,
         size_bytes: u32,
     ) -> Self {
         Self {
             class_id,
             class_traversal_id,
-            class_end_offset: Some(class_offset + class_size),
+            class_end_offset: match class_offset {
+                Some(a) => Some(a + class_size),
+                _ => None,
+            },
             field_id: None,
             field_type_syms: None,
-            type_pretty: "".to_string(),
             pretty: "(vtable)".to_string(),
+            type_pretty: "".to_string(),
             def_path: "".to_string(),
             start_lineno: 0,
             end_lineno: 0,
@@ -240,40 +251,42 @@ impl FieldsWithHash {
         let len = self.fields.len();
 
         for index in 0..len {
-            if self.fields[index].offset_bytes > last_end_offset {
-                if index != last_index
-                    && self.fields[last_index].class_traversal_id
-                        != self.fields[index].class_traversal_id
-                {
-                    if let Some(end_offset) = &self.fields[last_index].class_end_offset.clone() {
-                        if last_end_offset < *end_offset {
-                            self.fields[last_index].end_padding_bytes =
-                                Some(end_offset - last_end_offset);
+            if let Some(field_offset_bytes) = self.fields[index].offset_bytes {
+                if field_offset_bytes > last_end_offset {
+                    if index != last_index
+                        && self.fields[last_index].class_traversal_id
+                            != self.fields[index].class_traversal_id
+                    {
+                        if let Some(end_offset) = &self.fields[last_index].class_end_offset.clone()
+                        {
+                            if last_end_offset < *end_offset {
+                                self.fields[last_index].end_padding_bytes =
+                                    Some(end_offset - last_end_offset);
+                            }
+                            last_end_offset = *end_offset;
                         }
-                        last_end_offset = *end_offset;
+
+                        self.fields[index].hole_after_base = true;
                     }
 
-                    self.fields[index].hole_after_base = true;
+                    if field_offset_bytes > last_end_offset {
+                        self.fields[index].hole_bytes = Some(field_offset_bytes - last_end_offset);
+                    }
                 }
 
-                if self.fields[index].offset_bytes > last_end_offset {
-                    self.fields[index].hole_bytes =
-                        Some(self.fields[index].offset_bytes - last_end_offset);
+                last_index = index;
+
+                if let Some(pos) = &self.fields[index].bit_positions {
+                    let end = field_offset_bytes + (pos.begin + pos.width + 7) / 8;
+                    if end > last_end_offset {
+                        last_end_offset = end;
+                    }
+                    continue;
                 }
-            }
 
-            last_index = index;
-
-            if let Some(pos) = &self.fields[index].bit_positions {
-                let end = self.fields[index].offset_bytes + (pos.begin + pos.width + 7) / 8;
-                if end > last_end_offset {
-                    last_end_offset = end;
+                if let Some(size) = &self.fields[index].size_bytes {
+                    last_end_offset = field_offset_bytes + size;
                 }
-                continue;
-            }
-
-            if let Some(size) = &self.fields[index].size_bytes {
-                last_end_offset = self.fields[index].offset_bytes + size;
             }
         }
 
@@ -366,7 +379,9 @@ impl Class {
                 match field_variants_map.get(group_id) {
                     Some(field) => {
                         total_lineno += field.start_lineno;
-                        total_bit_offset += (field.offset_bytes as u64) * 8;
+                        if let Some(field_offset_bytes) = field.offset_bytes {
+                            total_bit_offset += (field_offset_bytes as u64) * 8;
+                        }
                         if let Some(pos) = &field.bit_positions {
                             total_bit_offset += pos.begin as u64;
                         }
@@ -386,8 +401,16 @@ impl Class {
                 }
             }
 
-            let average_lineno = total_lineno / field_count;
-            let average_bit_offset = total_bit_offset / field_count;
+            let average_lineno = if field_count == 0 {
+                0
+            } else {
+                total_lineno / field_count
+            };
+            let average_bit_offset = if field_count == 0 {
+                0
+            } else {
+                total_bit_offset / field_count
+            };
 
             field_list.push(FieldListItem {
                 def_paths: field_def_paths.join(","),
@@ -611,7 +634,9 @@ struct TraversalItem {
 
     // The offset for the class per platform.
     // Platforms not included in this map are not used for this traversal.
-    offset_map: HashMap<PlatformId, u32>,
+    offset_map: HashMap<PlatformId, Option<u32>>,
+
+    specialization_map: HashMap<PlatformId, StructuredSpecializationInfo>,
 }
 
 impl TraversalItem {
@@ -619,18 +644,31 @@ impl TraversalItem {
         Self {
             class_id,
             offset_map: HashMap::new(),
+            specialization_map: HashMap::new(),
         }
     }
 
-    fn add_offset(&mut self, platform_id: PlatformId, offset: u32) {
+    fn add_offset(&mut self, platform_id: PlatformId, offset: Option<u32>) {
         self.offset_map.insert(platform_id, offset);
     }
 
-    fn get_offset(&self, platform_id: &PlatformId) -> u32 {
+    fn get_offset(&self, platform_id: &PlatformId) -> Option<u32> {
         match self.offset_map.get(platform_id) {
             Some(offset) => *offset,
-            None => 0,
+            None => None,
         }
+    }
+
+    fn add_specialization(
+        &mut self,
+        platform_id: PlatformId,
+        specialization: StructuredSpecializationInfo,
+    ) {
+        self.specialization_map.insert(platform_id, specialization);
+    }
+
+    fn get_specialization(&self, platform_id: &PlatformId) -> Option<StructuredSpecializationInfo> {
+        self.specialization_map.get(platform_id).cloned()
     }
 
     fn is_enabled(&self, platform_id: &PlatformId) -> bool {
@@ -646,9 +684,23 @@ impl TraversalItem {
     }
 }
 
+struct SuperInfo {
+    offset: Option<u32>,
+    specialization: Option<StructuredSpecializationInfo>,
+}
+
+impl SuperInfo {
+    fn new(offset: Option<u32>, specialization: Option<StructuredSpecializationInfo>) -> Self {
+        Self {
+            offset: offset,
+            specialization: specialization,
+        }
+    }
+}
+
 struct SupersMap {
     super_ids: Vec<ClassId>,
-    supers: HashMap<ClassId, HashMap<PlatformId, u32>>,
+    supers: HashMap<ClassId, HashMap<PlatformId, SuperInfo>>,
 }
 
 impl SupersMap {
@@ -659,14 +711,20 @@ impl SupersMap {
         }
     }
 
-    fn add(&mut self, class_id: ClassId, platform_id: PlatformId, offset: u32) {
+    fn add(
+        &mut self,
+        class_id: ClassId,
+        platform_id: PlatformId,
+        offset: Option<u32>,
+        specialization: Option<StructuredSpecializationInfo>,
+    ) {
         if let Some(item) = self.supers.get_mut(&class_id) {
-            item.insert(platform_id, offset);
+            item.insert(platform_id, SuperInfo::new(offset, specialization));
             return;
         }
 
         let mut item = HashMap::new();
-        item.insert(platform_id, offset);
+        item.insert(platform_id, SuperInfo::new(offset, specialization));
         self.super_ids.push(class_id.clone());
         self.supers.insert(class_id, item);
     }
@@ -675,10 +733,13 @@ impl SupersMap {
         let mut result = vec![];
 
         for class_id in self.super_ids {
-            let offset_map = self.supers.get(&class_id).unwrap();
+            let super_info_map = self.supers.get(&class_id).unwrap();
             let mut item = TraversalItem::new(class_id);
-            for (platform_id, offset) in offset_map {
-                item.add_offset(*platform_id, *offset);
+            for (platform_id, super_info) in super_info_map {
+                item.add_offset(*platform_id, super_info.offset);
+                if let Some(specialization) = &super_info.specialization {
+                    item.add_specialization(*platform_id, specialization.clone());
+                }
             }
             result.push(item);
         }
@@ -736,7 +797,7 @@ impl ClassMap {
 
         let mut root_item = TraversalItem::new(root_sym_id);
         for platform_id in self.platform_map.platform_ids() {
-            root_item.add_offset(platform_id, 0);
+            root_item.add_offset(platform_id, Some(0));
         }
 
         let mut pending_items = VecDeque::new();
@@ -768,33 +829,47 @@ impl ClassMap {
             let mut supers = SupersMap::new();
 
             for (maybe_platform, s) in structured.per_platform() {
-                let mut maybe_platform_id: Option<PlatformId> = None;
+                let (maybe_platform_id, maybe_specialization) =
+                    if let Some(platform) = maybe_platform {
+                        let platform_id = self.platform_map.get(platform.clone());
+                        if !item.is_enabled(&platform_id) {
+                            continue;
+                        }
+                        (Some(platform_id), item.get_specialization(&platform_id))
+                    } else {
+                        if let Some(platform_id) = item.platforms().first() {
+                            (None, item.get_specialization(platform_id))
+                        } else {
+                            (None, None)
+                        }
+                    };
 
-                if let Some(platform) = maybe_platform {
-                    let platform_id = self.platform_map.get(platform.clone());
-                    if !item.is_enabled(&platform_id) {
-                        continue;
-                    }
-                    maybe_platform_id = Some(platform_id);
-                }
+                let (maybe_class_alignment, maybe_class_size, maybe_vtable_size_bytes) =
+                    if let Some(specialization) = &maybe_specialization {
+                        (
+                            specialization.alignment_bytes,
+                            specialization.size_bytes,
+                            specialization.own_vf_ptr_bytes,
+                        )
+                    } else {
+                        (s.alignment_bytes, s.size_bytes, s.own_vf_ptr_bytes)
+                    };
 
-                let class_alignment = s.alignment_bytes;
-
-                if let Some(class_size) = s.size_bytes {
+                if let Some(class_size) = maybe_class_size {
                     if let Some(platform_id) = &maybe_platform_id {
                         cls.alignment_and_size.insert(
                             platform_id.clone(),
-                            AlignmentAndSize::new(class_alignment, class_size),
+                            AlignmentAndSize::new(maybe_class_alignment, class_size),
                         );
 
-                        if let Some(vtable_size_bytes) = &s.own_vf_ptr_bytes {
+                        if let Some(vtable_size_bytes) = maybe_vtable_size_bytes {
                             let offset = item.get_offset(platform_id);
                             let field = Field::new_vtable(
                                 class_id.clone(),
                                 traversal_id,
                                 offset,
                                 class_size,
-                                *vtable_size_bytes,
+                                vtable_size_bytes,
                             );
                             fields_per_platform.add_field(platform_id, field.clone());
                         }
@@ -802,17 +877,17 @@ impl ClassMap {
                         for platform_id in item.platforms() {
                             cls.alignment_and_size.insert(
                                 platform_id,
-                                AlignmentAndSize::new(class_alignment, class_size),
+                                AlignmentAndSize::new(maybe_class_alignment, class_size),
                             );
 
-                            if let Some(vtable_size_bytes) = &s.own_vf_ptr_bytes {
+                            if let Some(vtable_size_bytes) = maybe_vtable_size_bytes {
                                 let offset = item.get_offset(&platform_id);
                                 let field = Field::new_vtable(
                                     class_id.clone(),
                                     traversal_id,
                                     offset,
                                     class_size,
-                                    *vtable_size_bytes,
+                                    vtable_size_bytes,
                                 );
                                 fields_per_platform.add_field(&platform_id, field.clone());
                             }
@@ -820,46 +895,128 @@ impl ClassMap {
                     }
                 }
 
-                if s.supers.len() > 1 {
-                    has_multiple_inheritance = true;
+                // Both AnalysisStructured and StructuredSpecializationInfo use
+                // StructuredSuperInfo for the list of supers, and we can just
+                // merge them, prioritizing the specialization.
+                let mut super_info_vec = vec![];
+                let mut super_sym_set = HashSet::new();
+
+                if let Some(specialization) = &maybe_specialization {
+                    for super_info in &specialization.supers {
+                        super_sym_set.insert(super_info.sym.clone());
+                        super_info_vec.push(super_info.clone());
+                    }
                 }
 
                 for super_info in &s.supers {
+                    if super_sym_set.contains(&super_info.sym) {
+                        continue;
+                    }
+
+                    super_sym_set.insert(super_info.sym.clone());
+                    super_info_vec.push(super_info.clone());
+                }
+
+                if super_info_vec.len() > 1 {
+                    has_multiple_inheritance = true;
+                }
+
+                for super_info in super_info_vec {
                     let (super_id, _) = self
                         .stt
                         .node_set
                         .ensure_symbol(&super_info.sym, server, depth + 1)
                         .await?;
 
-                    if super_info.offset_bytes.unwrap_or(0) > 0 {
-                        has_non_zero_super_offset = true;
+                    if let Some(offset_bytes) = super_info.offset_bytes {
+                        if offset_bytes > 0 {
+                            has_non_zero_super_offset = true;
+                        }
+                        Some(offset_bytes);
                     }
 
                     if let Some(platform_id) = &maybe_platform_id {
                         let offset = item.get_offset(platform_id);
+
+                        let total_offset = match (offset, super_info.offset_bytes) {
+                            (Some(a), Some(b)) => Some(a + b),
+                            _ => None,
+                        };
                         supers.add(
                             super_id.clone(),
                             *platform_id,
-                            offset + super_info.offset_bytes.unwrap_or(0),
+                            total_offset,
+                            super_info.specialization.clone(),
                         );
                     } else {
                         for platform_id in item.platforms() {
                             let offset = item.get_offset(&platform_id);
+
+                            let total_offset = match (offset, super_info.offset_bytes) {
+                                (Some(a), Some(b)) => Some(a + b),
+                                _ => None,
+                            };
                             supers.add(
                                 super_id.clone(),
                                 platform_id,
-                                offset + super_info.offset_bytes.unwrap_or(0),
+                                total_offset,
+                                super_info.specialization.clone(),
                             );
                         }
                     }
                 }
 
+                // AnalysisStructured and StructuredSpecializationInfo use
+                // different types for fields, where
+                // StructuredSpecializationInfo contains only the
+                // specialization part.
+                //
+                // The set of fields and the order should be the same between
+                // AnalysisStructured and StructuredSpecializationInfo.
+                //
+                // Apply the specialization for each.
+                let mut field_index = 0;
                 for field in s.fields.clone() {
+                    let field_sym = field.sym;
+                    let field_line_range = field.line_range;
+                    let field_pretty = field.pretty;
+
+                    let (
+                        field_type_sym,
+                        field_pointer_info,
+                        field_type_pretty,
+                        field_offset_bytes,
+                        field_bit_positions,
+                        field_size_bytes,
+                    ) = if let Some(specialization) = &maybe_specialization {
+                        let specialized_field = &specialization.fields[field_index];
+
+                        (
+                            specialized_field.type_sym,
+                            &specialized_field.pointer_info,
+                            specialized_field.type_pretty,
+                            specialized_field.offset_bytes,
+                            &specialized_field.bit_positions,
+                            specialized_field.size_bytes,
+                        )
+                    } else {
+                        (
+                            field.type_sym,
+                            &field.pointer_info,
+                            field.type_pretty,
+                            field.offset_bytes,
+                            &field.bit_positions,
+                            field.size_bytes,
+                        )
+                    };
+
+                    field_index += 1;
+
                     let (field_id, field_lineno) = {
                         let (field_id, field_info) = self
                             .stt
                             .node_set
-                            .ensure_symbol(&field.sym, server, depth + 1)
+                            .ensure_symbol(&field_sym, server, depth + 1)
                             .await?;
 
                         (field_id, field_info.get_def_lno())
@@ -870,17 +1027,17 @@ impl ClassMap {
 
                     // Add field type to the jumprefs, but we don't use the
                     // returned info.
-                    if !field.type_sym.is_empty() {
+                    if !field_type_sym.is_empty() {
                         let _ = self
                             .stt
                             .node_set
-                            .ensure_symbol(&field.type_sym, server, depth + 1)
+                            .ensure_symbol(&field_type_sym, server, depth + 1)
                             .await?;
 
-                        field_type_syms_vec.push(field.type_sym.to_string());
-                        field_type_syms_set.insert(field.type_sym);
+                        field_type_syms_vec.push(field_type_sym.to_string());
+                        field_type_syms_set.insert(field_type_sym);
                     }
-                    for info in &field.pointer_info {
+                    for info in field_pointer_info {
                         if field_type_syms_set.contains(&info.sym) {
                             continue;
                         }
@@ -903,12 +1060,17 @@ impl ClassMap {
                             class_id.clone(),
                             traversal_id,
                             offset,
-                            s.size_bytes,
+                            maybe_class_size,
                             field_id.clone(),
                             field_type_syms,
                             &struct_def_path,
                             field_lineno,
-                            &field,
+                            field_line_range.to_string(),
+                            field_pretty.to_string(),
+                            field_type_pretty.to_string(),
+                            field_offset_bytes,
+                            field_bit_positions.clone(),
+                            field_size_bytes,
                         );
                         self.populate_file_lines(&field.def_path, server).await?;
                         fields_per_platform.add_field(platform_id, field.clone());
@@ -919,12 +1081,17 @@ impl ClassMap {
                                 class_id.clone(),
                                 traversal_id,
                                 offset,
-                                s.size_bytes,
+                                maybe_class_size,
                                 field_id.clone(),
                                 field_type_syms.clone(),
                                 &struct_def_path,
                                 field_lineno,
-                                &field,
+                                field_line_range.to_string(),
+                                field_pretty.to_string(),
+                                field_type_pretty.to_string(),
+                                field_offset_bytes,
+                                field_bit_positions.clone(),
+                                field_size_bytes,
                             );
                             self.populate_file_lines(&field.def_path, server).await?;
                             fields_per_platform.add_field(&platform_id, field.clone());
@@ -1204,27 +1371,36 @@ impl ClassMap {
                                 }
                             }
 
-                            if let Some(pos) = &field.bit_positions {
-                                field_item.offset_and_size.push(Some(
-                                    SymbolTreeTableFieldOffsetAndSize::new(
-                                        format!(
-                                            "@ {:#x} + {} bit{}",
-                                            field.offset_bytes,
-                                            pos.begin,
-                                            if pos.begin > 1 { "s" } else { "" }
+                            if let Some(field_offset_bytes) = field.offset_bytes {
+                                if let Some(pos) = &field.bit_positions {
+                                    field_item.offset_and_size.push(Some(
+                                        SymbolTreeTableFieldOffsetAndSize::new(
+                                            format!(
+                                                "@ {:#x} + {} bit{}",
+                                                field_offset_bytes,
+                                                pos.begin,
+                                                if pos.begin > 1 { "s" } else { "" }
+                                            ),
+                                            format!(
+                                                "{} bit{}",
+                                                pos.width,
+                                                if pos.width > 1 { "s" } else { "" }
+                                            ),
                                         ),
-                                        format!(
-                                            "{} bit{}",
-                                            pos.width,
-                                            if pos.width > 1 { "s" } else { "" }
+                                    ))
+                                } else {
+                                    field_item.offset_and_size.push(Some(
+                                        SymbolTreeTableFieldOffsetAndSize::new(
+                                            format!("@ {:#x}", field_offset_bytes,),
+                                            format!("{}", field.size_bytes.unwrap_or(0),),
                                         ),
-                                    ),
-                                ))
+                                    ));
+                                }
                             } else {
                                 field_item.offset_and_size.push(Some(
                                     SymbolTreeTableFieldOffsetAndSize::new(
-                                        format!("@ {:#x}", field.offset_bytes,),
-                                        format!("{}", field.size_bytes.unwrap_or(0),),
+                                        "@ ?".to_string(),
+                                        "?".to_string(),
                                     ),
                                 ));
                             }
