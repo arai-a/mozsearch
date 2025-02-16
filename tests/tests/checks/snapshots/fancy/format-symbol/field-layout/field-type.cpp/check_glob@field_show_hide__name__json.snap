@@ -619,7 +619,7 @@ expression: "&to_value(sttl).unwrap()"
                 "sym": "F_<T_field_layout::field_type::Container1>_a",
                 "type": "type-parameter-0-0",
                 "typesym": "",
-                "offsetBytes": 0,
+                "offsetBytes": null,
                 "bitPositions": null,
                 "sizeBytes": null
               }
@@ -657,7 +657,7 @@ expression: "&to_value(sttl).unwrap()"
                 "sym": "F_<T_field_layout::field_type::Container2>_a",
                 "type": "type-parameter-0-0",
                 "typesym": "",
-                "offsetBytes": 0,
+                "offsetBytes": null,
                 "bitPositions": null,
                 "sizeBytes": null
               }

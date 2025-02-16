@@ -219,7 +219,59 @@ pub enum StructuredTag {
     Structured = 1,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+// Templatized classes' AnalysisStructured doesn't have layout information that
+// depends on the template parameter, such as the offset and the size.
+//
+// If the template class is inherited and the subclass specifies the template
+// parameter and specializes the super class, that case has the layout
+// information.  Those informations are stored in the
+// AnalysisStructured.supers[i].specialization, recursively for
+// all templatized ancestor classes.
+//
+// The class field layout table can merge those information and generate the
+// layout table for the subclass's specific specialization.
+
+// Specialized layout data for StructuredFieldInfo.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StructuredSpecializationFieldInfo<StrT = Ustr>
+where
+    StrT: Clone + Debug + Default + Deref<Target = str> + FromStr + Hash + Ord + PartialEq,
+{
+    #[serde(rename = "type", default)]
+    pub type_pretty: StrT,
+    #[serde(rename = "typesym", default)]
+    pub type_sym: StrT,
+    #[serde(rename = "offsetBytes", default)]
+    pub offset_bytes: Option<u32>,
+    #[serde(rename = "bitPositions")]
+    pub bit_positions: Option<StructuredBitPositionInfo>,
+    #[serde(rename = "sizeBytes")]
+    pub size_bytes: Option<u32>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub labels: BTreeSet<StrT>,
+    #[serde(default, rename = "pointerInfo", skip_serializing_if = "Vec::is_empty")]
+    pub pointer_info: Vec<StructuredPointerInfo<StrT>>,
+}
+
+// Specialized layout data for AnalysisStructured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StructuredSpecializationInfo<StrT = Ustr>
+where
+    StrT: Clone + Debug + Default + Deref<Target = str> + FromStr + Hash + Ord + PartialEq,
+{
+    #[serde(rename = "sizeBytes")]
+    pub size_bytes: Option<u32>,
+    #[serde(rename = "alignmentBytes")]
+    pub alignment_bytes: Option<u32>,
+    #[serde(rename = "ownVFPtrBytes")]
+    pub own_vf_ptr_bytes: Option<u32>,
+    #[serde(default)]
+    pub supers: Vec<StructuredSuperInfo<StrT>>,
+    #[serde(default)]
+    pub fields: Vec<StructuredSpecializationFieldInfo<StrT>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StructuredSuperInfo<StrT = Ustr>
 where
     StrT: Clone + Debug + Default + Deref<Target = str> + FromStr + Hash + Ord + PartialEq,
@@ -227,9 +279,11 @@ where
     #[serde(default)]
     pub sym: StrT,
     #[serde(rename = "offsetBytes", default)]
-    pub offset_bytes: u32,
+    pub offset_bytes: Option<u32>,
     #[serde(default)]
     pub props: Vec<StrT>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub specialization: Option<StructuredSpecializationInfo<StrT>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -298,9 +352,8 @@ where
     pub type_pretty: StrT,
     #[serde(rename = "typesym", default)]
     pub type_sym: StrT,
-    // XXX this should be made Optional like size_bytes.
     #[serde(rename = "offsetBytes", default)]
-    pub offset_bytes: u32,
+    pub offset_bytes: Option<u32>,
     #[serde(rename = "bitPositions")]
     pub bit_positions: Option<StructuredBitPositionInfo>,
     #[serde(rename = "sizeBytes")]
