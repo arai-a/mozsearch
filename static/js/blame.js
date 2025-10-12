@@ -84,13 +84,15 @@ var BlamePopup = new (class BlamePopup {
 
     let isGC = false;
     let gcInfo = null;
-    if (elt?.dataset?.symbols) {
-      for (const sym of elt.dataset.symbols.split(",")) {
-        if (sym in SYM_INFO) {
-          const info = SYM_INFO[sym];
-          if (info.meta && "canGC" in info.meta) {
-            gcInfo = info;
-            isGC = true;
+    if (Settings.semanticInfo.enabled) {
+      if (elt?.dataset?.symbols) {
+        for (const sym of elt.dataset.symbols.split(",")) {
+          if (sym in SYM_INFO) {
+            const info = SYM_INFO[sym];
+            if (info.meta && "canGC" in info.meta) {
+              gcInfo = info;
+              isGC = true;
+            }
           }
         }
       }
