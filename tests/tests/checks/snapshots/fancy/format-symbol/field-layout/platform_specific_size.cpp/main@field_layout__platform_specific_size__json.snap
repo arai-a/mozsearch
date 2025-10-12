@@ -1,6 +1,7 @@
 ---
 source: src/bin/test-index.rs
 expression: "&to_value(sttl).unwrap()"
+input_file: inputs/fancy/format-symbol/field-layout/platform_specific_size.cpp/field_layout__platform_specific_size__json
 ---
 {
   "tables": [
@@ -158,6 +159,7 @@ expression: "&to_value(sttl).unwrap()"
                 "props": [],
                 "variants": [],
                 "platforms": [
+                  "linux64-opt",
                   "linux64",
                   "macosx64"
                 ]
@@ -173,8 +175,8 @@ expression: "&to_value(sttl).unwrap()"
         }
       },
       "platforms": [
-        "win64",
-        "macosx64 linux64"
+        "win64-debug",
+        "macosx64-debug linux64-opt linux64-debug"
       ],
       "rows": [
         {

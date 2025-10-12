@@ -1,6 +1,7 @@
 ---
 source: src/bin/test-index.rs
 expression: "&json_results"
+input_file: inputs/analysis/cpp/macro.cpp/per_target_function_lower
 ---
 [
   {
@@ -77,7 +78,7 @@ expression: "&json_results"
   {
     "loc": "00046:12-31",
     "source": 1,
-    "syntax": "use,function",
+    "syntax": "function,use",
     "pretty": "function per_target_function",
     "sym": "_Z19per_target_functionv",
     "type": "_Bool (void)"
@@ -124,6 +125,10 @@ expression: "&json_results"
     "inExpansionAt": {
       "M_774175e1e9d206ca": {
         "linux64": [
+          5,
+          66
+        ],
+        "linux64-opt": [
           5,
           66
         ]

@@ -1,7 +1,7 @@
 ---
 source: src/bin/test-index.rs
 expression: "&json_results"
-snapshot_kind: text
+input_file: inputs/analysis/cpp/macro.cpp/EMPTY_MACRO__json
 ---
 [
   {
@@ -146,6 +146,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -160,6 +161,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -174,6 +176,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -188,6 +191,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -202,6 +206,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -216,6 +221,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -230,6 +236,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -244,6 +251,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -258,6 +266,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -272,6 +281,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -286,6 +296,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -300,6 +311,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -314,6 +326,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -328,6 +341,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }
@@ -356,6 +370,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_33c101c9a44abeec": {
         "linux64": "",
+        "linux64-opt": "",
         "macosx64": "",
         "win64": ""
       }

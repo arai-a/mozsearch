@@ -1,7 +1,7 @@
 ---
 source: src/bin/test-index.rs
 expression: "&json_results"
-snapshot_kind: text
+input_file: inputs/analysis/cpp/macro.cpp/NESTED_MACRO
 ---
 [
   {
@@ -34,6 +34,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_f43901c9a44abeec,M_b42801c9a44abeec": {
         "linux64": "15",
+        "linux64-opt": "15",
         "macosx64": "15",
         "win64": "15"
       }

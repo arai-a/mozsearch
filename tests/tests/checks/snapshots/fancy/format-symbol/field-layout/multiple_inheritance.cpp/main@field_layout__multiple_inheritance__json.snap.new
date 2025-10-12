@@ -1,5 +1,6 @@
 ---
 source: src/bin/test-index.rs
+assertion_line: 145
 expression: "&to_value(sttl).unwrap()"
 input_file: inputs/fancy/format-symbol/field-layout/multiple_inheritance.cpp/field_layout__multiple_inheritance__json
 ---
@@ -1497,7 +1498,7 @@ input_file: inputs/fancy/format-symbol/field-layout/multiple_inheritance.cpp/fie
       },
       "platforms": [
         "win64-debug",
-        "macosx64-debug linux64-debug linux64-opt"
+        "macosx64-debug linux64-opt linux64-debug"
       ],
       "rows": [
         {

@@ -442,6 +442,13 @@ struct PlatformMap {
 
     // The temporary data structure to calculate platform ID.
     platform_name_to_id: HashMap<String, PlatformId>,
+
+    // Set to true if we have *-opt platform.
+    // In this case, platforms without *-opt should be renamed to
+    // *-debug.
+    has_opt: bool,
+
+    is_all_platform_same: bool,
 }
 
 impl PlatformMap {
@@ -449,12 +456,18 @@ impl PlatformMap {
         Self {
             platform_id_to_name: vec![],
             platform_name_to_id: HashMap::new(),
+            has_opt: false,
+            is_all_platform_same: false,
         }
     }
 
     fn add(&mut self, platform: String) -> PlatformId {
         if let Some(platform_id) = self.platform_name_to_id.get(&platform) {
             return *platform_id;
+        }
+
+        if platform.ends_with("-opt") {
+            self.has_opt = true;
         }
 
         let platform_id = PlatformId(self.platform_name_to_id.len() as u32);
@@ -466,6 +479,7 @@ impl PlatformMap {
 
     fn finish_populating(&mut self) {
         if self.is_empty() {
+            self.is_all_platform_same = true;
             let id = self.add("All platforms".to_string());
             assert!(id == PlatformId::all());
         }
@@ -488,27 +502,61 @@ impl PlatformMap {
     }
 
     fn get_name(&self, platform_id: &PlatformId) -> String {
-        self.platform_id_to_name[platform_id.0 as usize].clone()
+        let name = self.platform_id_to_name[platform_id.0 as usize].clone();
+        if self.has_opt && !self.is_all_platform_same && !name.ends_with("-opt") {
+            name + "-debug"
+        } else {
+            name
+        }
     }
 }
 
 fn platform_name_to_order(name: &str) -> u32 {
-    if name.starts_with("win") {
+    if name == "win64" {
         return 0;
     }
-    if name.starts_with("macosx") {
+    if name.starts_with("win") {
         return 1;
     }
-    if name.starts_with("linux") {
+
+    if name == "macosx64" {
         return 2;
     }
-    if name.starts_with("android") {
+    if name == "macosx64-aarch64" {
         return 3;
     }
-    if name.starts_with("ios") {
+    if name.starts_with("macosx") {
         return 4;
     }
-    5
+
+    if name == "linux64-opt" {
+        return 5;
+    }
+    if name == "linux64" {
+        return 6;
+    }
+    if name.starts_with("linux") {
+        return 7;
+    }
+
+    if name == "android-armv7" {
+        return 8;
+    }
+    if name == "android-aarch64" {
+        return 9;
+    }
+    if name.starts_with("android") {
+        return 10;
+    }
+
+    if name == "ios" {
+        return 11;
+    }
+    if name.starts_with("ios") {
+        return 12;
+    }
+
+    13
 }
 
 // Struct to hold the list of fields for the entire class hierarchy

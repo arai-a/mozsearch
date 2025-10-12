@@ -1,7 +1,7 @@
 ---
 source: src/bin/test-index.rs
 expression: "&json_results"
-snapshot_kind: text
+input_file: inputs/analysis/cpp/macro.cpp/MULTI_LINE_MACRO
 ---
 [
   {
@@ -55,6 +55,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_dca801c9a44abeec": {
         "linux64": "static bool\nBool0()\n{\n  return true;\n}",
+        "linux64-opt": "static bool\nBool0()\n{\n  return true;\n}",
         "macosx64": "static bool\nBool0()\n{\n  return true;\n}",
         "win64": "static bool\nBool0()\n{\n  return true;\n}"
       }
@@ -69,6 +70,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_dca801c9a44abeec": {
         "linux64": "static bool\nBool1()\n{\n  return true;\n}",
+        "linux64-opt": "static bool\nBool1()\n{\n  return true;\n}",
         "macosx64": "static bool\nBool1()\n{\n  return true;\n}",
         "win64": "static bool\nBool1()\n{\n  return true;\n}"
       }
@@ -83,6 +85,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_dca801c9a44abeec": {
         "linux64": "static bool\nBool2()\n{\n  return false;\n}",
+        "linux64-opt": "static bool\nBool2()\n{\n  return false;\n}",
         "macosx64": "static bool\nBool2()\n{\n  return false;\n}",
         "win64": "static bool\nBool2()\n{\n  return false;\n}"
       }
@@ -97,6 +100,7 @@ snapshot_kind: text
     "expandsTo": {
       "M_dca801c9a44abeec": {
         "linux64": "static bool\nBool3()\n{\n  return false;\n}",
+        "linux64-opt": "static bool\nBool3()\n{\n  return false;\n}",
         "macosx64": "static bool\nBool3()\n{\n  return false;\n}",
         "win64": "static bool\nBool3()\n{\n  return false;\n}"
       }

@@ -36,7 +36,7 @@ MULTI_LINE_MACRO(Bool2, false)
 
 MULTI_LINE_MACRO(Bool3, false)
 
-#if defined(TARGET_linux64)
+#if defined(TARGET_linux64) || defined(TARGET_linux64_opt)
 #  define PER_TARGET_FUNCTION    \
     bool per_target_function() { \
       int a;                     \

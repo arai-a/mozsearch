@@ -4,7 +4,7 @@ namespace field_layout {
 
 namespace platform_specific_size {
 
-#ifdef TARGET_linux64
+#if defined(TARGET_linux64) || defined(TARGET_linux64_opt)
 using T1 = uint32_t;
 #endif
 

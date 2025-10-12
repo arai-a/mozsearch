@@ -7,19 +7,23 @@ namespace platform_specific_field {
 struct S1 {
   uint32_t f1;
 
-#if defined(TARGET_linux64) || defined(TARGET_macosx64)
+#if defined(TARGET_linux64) || defined(TARGET_linux64_opt) || defined(TARGET_macosx64)
   uint32_t f2;
 #endif
 
 #ifdef TARGET_win64
   uint8_t f3;
 #endif
+
+#ifndef TARGET_linux64_opt
+  uint32_t debug;
+#endif
 };
 
 struct S2 : public S1 {
   uint32_t f4;
 
-#ifdef TARGET_linux64
+#if defined(TARGET_linux64) || defined(TARGET_linux64_opt)
   uint8_t f5;
 #endif
 };
@@ -45,7 +49,7 @@ struct T2 : public T1 {
 struct T3 : public T2 {
   uint32_t f4;
 
-#if defined(TARGET_linux64) || defined(TARGET_macosx64)
+#if defined(TARGET_linux64) || defined(TARGET_linux64_opt) || defined(TARGET_macosx64)
   uint32_t f5;
 #endif
 
