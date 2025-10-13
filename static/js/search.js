@@ -64,6 +64,8 @@ var Dxr = new (class Dxr {
       });
       this.initFormFromLocalStorageOrUrl();
     }
+
+    this.showTestBanner();
   }
 
   cancel(cancelFetch = true) {
@@ -354,6 +356,27 @@ var Dxr = new (class Dxr {
     this.fields.query.value = query;
     let url = this.constructURL();
     this.updateHistory(url);
+  }
+
+  showTestBanner() {
+    if (document.domain == "searchfox.org") {
+      return;
+    }
+
+    const header = document.querySelector("#fixed-header");
+    if (!header) {
+      return;
+    }
+
+    const bannerBox = document.createElement("div");
+    bannerBox.id = "test-banner-container";
+
+    const banner = document.createElement("div");
+    banner.id = "test-banner";
+    banner.append("TEST SERVER: " + document.domain);
+    bannerBox.append(banner);
+
+    header.append(bannerBox);
   }
 })();
 

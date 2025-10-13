@@ -106,6 +106,10 @@ table {
       + var(--checkbox-margin)
     )
   );
+
+
+  --test-banner-background: rgb(221, 221, 221);
+  --test-banner-foreground: rgb(168, 31, 31);
 }
 
 @supports (color-scheme: dark) {
@@ -172,6 +176,9 @@ table {
     --select-arrow-svg: url("../images/select-arrow-dark.svg");
 
     color-scheme: dark;
+
+    --test-banner-background: rgb(49, 47, 51);
+    --test-banner-foreground: rgb(255, 145, 145);
   }
 }
 }
@@ -1605,4 +1612,27 @@ g.true-diag g.node polygon {
 
 #query-debug-results-json[aria-hidden] {
   display: none;
+}
+
+/* Test server banner */
+#test-banner-container {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+}
+
+#test-banner {
+  background: var(--test-banner-background);
+  color: var(--test-banner-foreground);
+  border-color: var(--test-banner-foreground);
+  border-style: solid;
+  border-width: 0 1px 1px 1px;
+  border-radius: 0 0 4px 4px;
+  padding: 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
 }
