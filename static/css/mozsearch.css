@@ -35,8 +35,8 @@ table {
   --panel-header-background: #333;
   --panel-header-color: #fff;
 
-  --panel-callgraph-background: #ffffd0;
-  --panel-callgraph-background-highlight: #ffff80;
+  --panel-diagram-background: #ffffd0;
+  --panel-diagram-background-highlight: #ffff80;
 
   --list-hover-background: #e0e0e0;
   --list-subtle-background: var(--line-stuck-background);
@@ -179,8 +179,8 @@ table {
     --tooltip-background: #333333;
     --tooltip-border: var(--page-border-color);
 
-    --panel-callgraph-background: #404030;
-    --panel-callgraph-background-highlight: #808030;
+    --panel-diagram-background: #404030;
+    --panel-diagram-background-highlight: #808030;
 
     --list-hover-background: var(--button-hover-background);
 
@@ -868,26 +868,53 @@ tr.after-context-line + tr.before-context-line {
   cursor: not-allowed;
 }
 
-.panel .callgraph-box {
-  background-color: var(--panel-callgraph-background);
+.panel .diagram-box {
+  background-color: var(--panel-diagram-background);
   transition: background-color 0.5s;
 }
-.panel .callgraph-box.highlight {
-  background-color: var(--panel-callgraph-background-highlight);
+.panel .diagram-box.highlight {
+  background-color: var(--panel-diagram-background-highlight);
   transition: none;
 }
 
 .panel .selected-symbol-section,
-.panel .callgraph-source-section {
-  width: 240px;
+.panel .diagram-symbols-section {
+  min-width: 240px;
   display: grid;
-  grid-template-columns: 200px 30px;
+  grid-template-columns: minmax(200px, 1fr) 30px;
   gap: 10px;
 }
 
-.callgraph-source-section-label {
-  padding-inline-start: 30px;
-  margin-bottom: 4px;
+.panel .diagram-symbols-section {
+  margin-top: 16px;
+}
+
+.diagram-autoclear {
+  padding-inline-start: 26px;
+}
+
+.diagram-buttons {
+  display: flex;
+  padding-inline-start: 26px;
+}
+
+.diagram-buttons .diagram-button {
+  color: var(--page-color);
+  display: inline-block;
+  margin-inline-end: 8px;
+  border: 1px solid var(--page-border-color);
+  background: var(--button-background);
+  padding: 0 4px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.diagram-buttons .diagram-button:hover {
+  background-color: var(--button-hover-background);
+}
+
+.diagram-buttons .diagram-button:active {
+  background-color: var(--button-active-background);
 }
 
 .panel .symbox {

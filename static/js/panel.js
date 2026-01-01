@@ -173,7 +173,7 @@ var Panel = new (class Panel {
     }
 
     if (Settings.diagramming.enabled) {
-      this.addEmptyCallgraphBox();
+      this.addEmptyDiagramBox();
     }
 
     if (Settings.debug.ui) {
@@ -472,81 +472,215 @@ var Panel = new (class Panel {
     return { symBox, nsBox, localBox };
   }
 
-  addEmptyCallgraphBox() {
+  addEmptyDiagramBox() {
     const box = document.createElement("div");
-    box.classList.add("callgraph-box");
+    box.classList.add("diagram-box");
     this.content.append(box);
 
-    this.callgraphBox = box;
-    this.callgraphSource = null;
+    this.diagramBox = box;
+    this.diagramItems = [];
 
-    this.syncCallgraphSource(true);
+    this.syncDiagram(true);
   }
 
-  syncCallgraphSource(skipHighlight) {
-    const source = localStorage.getItem("callgraph-source");
-    if (source) {
-      this.setCallGraphSource(source, skipHighlight);
+  syncDiagram(skipHighlight) {
+    let items = null;
+    try {
+      items = JSON.parse(localStorage.getItem("diagram-items")).filter(x => x && (typeof x === "string"));
+    } catch {}
+    if (items) {
+      this.setDiagramItems(items, skipHighlight, true);
     } else {
-      this.clearCallGraphSource();
+      this.clearDiagramItems();
     }
   }
 
-  ensureCallgraphSection() {
-    if (this.callgraphBox.childNodes.length > 0) {
+  maybeAutoClearDiagramItems() {
+    if (this.diagramAutoClearCheckbox.checked) {
+      this.clearDiagramItems();
+    }
+  }
+
+  updateDiagramSection() {
+    if (!this.diagramSymbolsSection) {
+      const h4 = document.createElement("h4");
+      h4.textContent = "Call diagram";
+      this.diagramBox.append(h4);
+
+      this.diagramButtons = document.createElement("div");
+      this.diagramButtons.classList.add("diagram-buttons");
+      this.diagramBox.append(this.diagramButtons);
+
+      const div = document.createElement("div");
+      div.classList.add("diagram-autoclear");
+      const label = document.createElement("label");
+      this.diagramAutoClearCheckbox = document.createElement("input");
+      this.diagramAutoClearCheckbox.type = "checkbox";
+      this.diagramAutoClearCheckbox.addEventListener("change", event => {
+        localStorage.setItem("diagram-auto-clear", event.target.checked ? "1" : "0");
+      });
+      if (localStorage.getItem("diagram-auto-clear") !== "0") {
+        this.diagramAutoClearCheckbox.checked = true;
+      }
+      label.append(this.diagramAutoClearCheckbox);
+      label.append("Auto-clear");
+      div.append(label);
+      this.diagramBox.append(div);
+
+      this.diagramSymbolsSection = document.createElement("div");
+      this.diagramSymbolsSection.classList.add("diagram-symbols-section");
+      this.diagramBox.append(this.diagramSymbolsSection);
+    }
+
+    const tree = document.getElementById("data").getAttribute("data-tree");
+    const firstItem = this.diagramItems[0];
+    const secondItem = this.diagramItems[1];
+
+    const buttons = [];
+
+    if (firstItem && !secondItem) {
+      {
+        const button = document.createElement("a");
+        button.classList.add("diagram-button");
+        button.append("Calls to");
+        button.title = "Uses diagram";
+        const query = `calls-to:'${firstItem}' depth:4`;
+        button.href = `/${tree}/query/default?q=${encodeURIComponent(query)}`;
+        button.addEventListener("click", e => {
+          this.maybeAutoClearDiagramItems();
+        });
+        buttons.push(button);
+      }
+
+      {
+        const button = document.createElement("a");
+        button.classList.add("diagram-button");
+        button.append("Calls from");
+        button.title = "Calls diagram";
+        const query = `calls-from:'${firstItem}' depth:4`;
+        button.href = `/${tree}/query/default?q=${encodeURIComponent(query)}`;
+        button.addEventListener("click", e => {
+          this.maybeAutoClearDiagramItems();
+        });
+        buttons.push(button);
+      }
+    }
+
+    if (firstItem && secondItem) {
+      {
+        const button = document.createElement("a");
+        button.classList.add("diagram-button");
+        button.append("Directed calls");
+        button.title = "Directed calls-between diagram";
+        const query = `calls-between-source:'${firstItem}' calls-between-target:'${secondItem}' depth:8`;
+        button.href = `/${tree}/query/default?q=${encodeURIComponent(query)}`;
+        button.addEventListener("click", e => {
+          this.maybeAutoClearDiagramItems();
+        });
+        buttons.push(button);
+      }
+
+      {
+        const button = document.createElement("a");
+        button.classList.add("diagram-button");
+        button.append("Undirected calls");
+        button.title = "Undirected calls-between diagram";
+        const query = `calls-between:'${firstItem}' calls-between:'${secondItem}' depth:8`;
+        button.href = `/${tree}/query/default?q=${encodeURIComponent(query)}`;
+        button.addEventListener("click", e => {
+          this.maybeAutoClearDiagramItems();
+        });
+        buttons.push(button);
+      }
+
+      {
+        const button = document.createElement("a");
+        button.classList.add("diagram-button");
+        button.append("Swap");
+        button.title = "Swap items";
+        button.addEventListener("click", e => {
+          e.preventDefault();
+          this.setDiagramItems([secondItem, firstItem], true);
+        });
+        buttons.push(button);
+      }
+    }
+
+    const symbols = [];
+    for (const item of this.diagramItems) {
+      const itemBox = this.createSymBox("diagram-item");
+      this.updateSymbox(itemBox, item);
+      symbols.push(itemBox.symBox);
+
+      const trashBox = document.createElement("div");
+      const trashIcon = document.createElement("span");
+      trashIcon.classList.add("icon-trash", "trash");
+      symbols.push(trashIcon);
+
+      trashIcon.addEventListener("click", e => {
+        e.preventDefault();
+
+        this.removeDiagramItem(item);
+      });
+    }
+
+    this.diagramButtons.replaceChildren(...buttons);
+    this.diagramSymbolsSection.replaceChildren(...symbols);
+  }
+
+  addDiagramItem(item) {
+    if (this.diagramItems.includes(item)) {
       return;
     }
 
-    const h4 = document.createElement("h4");
-    h4.textContent = "Callgraph source";
-    this.callgraphBox.append(h4);
-
-    const box = document.createElement("div");
-    box.classList.add("callgraph-source-section");
-
-    this.callgraphSourceBox = this.createSymBox("callgraph-source");
-    box.append(this.callgraphSourceBox.symBox);
-
-    const trashBox = document.createElement("div");
-    const trashIcon = document.createElement("span");
-    trashIcon.classList.add("icon-trash", "trash");
-    box.append(trashIcon);
-
-    trashIcon.addEventListener("click", e => {
-      e.preventDefault();
-
-      this.clearCallGraphSource();
-    });
-
-    this.callgraphBox.append(box);
+    if (this.diagramItems.length === 0) {
+      this.setDiagramItems([item]);
+    } else if (this.diagramItems.length === 1) {
+      this.setDiagramItems([this.diagramItems[0], item]);
+    } else {
+      this.setDiagramItems([this.diagramItems.at(-1), item]);
+    }
   }
 
-  setCallGraphSource(pretty, skipHighlight=false) {
-    localStorage.setItem("callgraph-source", pretty);
-    const updated = this.callgraphSource != pretty;
-    this.callgraphSource = pretty;
+  setDiagramItems(items, skipHighlight=false, skipSave=false) {
+    const updated = JSON.stringify(this.diagramItems) != JSON.stringify(items);
+    this.diagramItems = items;
+    if (!skipSave) {
+      localStorage.setItem("diagram-items", JSON.stringify(this.diagramItems));
+    }
 
-    this.ensureCallgraphSection();
+    if (updated) {
+      this.updateDiagramSection();
+    }
 
     if (!this.isExpanded()) {
       this.toggle();
     }
 
-    this.updateSymbox(this.callgraphSourceBox, pretty);
-
     if (!skipHighlight && updated) {
-      this.callgraphBox.classList.add("highlight");
+      this.diagramBox.classList.add("highlight");
       setTimeout(() => {
-        this.callgraphBox.classList.remove("highlight");
+        this.diagramBox.classList.remove("highlight");
       }, 500);
     }
   }
 
-  clearCallGraphSource() {
-    localStorage.removeItem("callgraph-source");
-    this.callgraphSource = null;
+  removeDiagramItem(item) {
+    const newItems = this.diagramItems.filter(x => x !== item);
+    if (newItems.length === 0) {
+      this.clearDiagramItems();
+    } else if (newItems.length !== this.diagramItems.length) {
+      this.setDiagramItems(newItems);
+    }
+  }
 
-    this.callgraphBox.replaceChildren();
+  clearDiagramItems() {
+    localStorage.removeItem("diagram-items");
+    this.diagramItems = [];
+
+    this.diagramBox.replaceChildren();
+    this.diagramSymbolsSection = null;
+    this.diagramButtons = null;
   }
 
   addDebugSection() {

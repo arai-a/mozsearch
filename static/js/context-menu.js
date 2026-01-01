@@ -946,41 +946,12 @@ var ContextMenu = new (class ContextMenu extends ContextMenuBase {
         }
 
         if (Settings.diagramming.enabled) {
-          Panel.syncCallgraphSource(true);
+          Panel.syncDiagram(true);
           for (const jumpref of diagrammableSyms) {
-            // Always offer to diagram uses of things
-            let queryString = `calls-to:'${jumpref.pretty}' depth:4`;
-            // TODO: Try dog-fooding with using the symbol-specific variant of this
-            // whose query syntax is below.  The rationale for using pretty
-            // identifiers is that they are more stable and more readable than
-            // symbols.  It might be most practical to allow specializing a link
-            // to just a single symbol from the page itself or in a sidebar
-            // affordance, especially since it's hard to concisely express the
-            // differences in signatures for overloads (although we have some
-            // tentative plans to).
-            //queryString = `calls-to-sym:'${jumpref.sym}' depth:4`;
             diagramMenuItems.push(new MenuItem({
-              html: this.fmt("Uses diagram of <strong>_</strong>", jumpref.pretty),
-              href: `/${tree}/query/default?q=${encodeURIComponent(queryString)}`,
-              icon: "brush",
-              section: "diagrams",
-              confidence,
-            }));
-
-            // Always offer to diagram uses of things
-            queryString = `calls-from:'${jumpref.pretty}' depth:4`;
-            diagramMenuItems.push(new MenuItem({
-              html: this.fmt("Calls diagram of <strong>_</strong>", jumpref.pretty),
-              href: `/${tree}/query/default?q=${encodeURIComponent(queryString)}`,
-              icon: "brush",
-              section: "diagrams",
-              confidence,
-            }));
-
-            diagramMenuItems.push(new MenuItem({
-              html: this.fmt("Save as calls diagram source: <strong>_</strong>", jumpref.pretty),
+              html: this.fmt("Save for calls diagram: <strong>_</strong>", jumpref.pretty),
               action: () => {
-                Panel.setCallGraphSource(jumpref.pretty);
+                Panel.addDiagramItem(jumpref.pretty);
                 this.hide();
               },
               icon: "brush",
@@ -988,24 +959,10 @@ var ContextMenu = new (class ContextMenu extends ContextMenuBase {
               confidence,
             }));
 
-            if (Panel.callgraphSource) {
-              const queryString = `calls-between-source:${Panel.callgraphSource} calls-between-target:${jumpref.pretty} depth:8`;
-              diagramMenuItems.push(new MenuItem({
-                html: this.fmt("Use as calls diagram target: <strong>_</strong>", jumpref.pretty),
-                preaction: () => {
-                  Panel.clearCallGraphSource();
-                },
-                href: `/${tree}/query/default?q=${encodeURIComponent(queryString)}`,
-                icon: "brush",
-                section: "callgraph",
-                confidence,
-              }));
-            }
-
             if ((jumpref?.meta?.kind === "class" || jumpref?.meta?.kind === "struct") &&
                 jumpref?.meta?.fields?.length) {
               // Offer class diagrams for classes/structs that have fields.
-              queryString = `class-diagram:'${jumpref.pretty}' depth:4`;
+              let queryString = `class-diagram:'${jumpref.pretty}' depth:4`;
               diagramMenuItems.push(new MenuItem({
                 html: this.fmt("Class diagram of <strong>_</strong>", jumpref.pretty),
                 href: `/${tree}/query/default?q=${encodeURIComponent(queryString)}`,
@@ -1029,7 +986,7 @@ var ContextMenu = new (class ContextMenu extends ContextMenuBase {
             // despite the name demanding it.  (cmd_traverse would like a minor
             // cleanup.)
             if (showInheritance) {
-              queryString = `inheritance-diagram:'${jumpref.pretty}' depth:4`;
+              let queryString = `inheritance-diagram:'${jumpref.pretty}' depth:4`;
               diagramMenuItems.push(new MenuItem({
                 html: this.fmt("Inheritance diagram of <strong>_</strong>", jumpref.pretty),
                 href: `/${tree}/query/default?q=${encodeURIComponent(queryString)}`,
