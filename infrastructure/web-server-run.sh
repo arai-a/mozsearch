@@ -19,10 +19,31 @@ SERVER_ROOT=$(readlink -f $3)
 CONFIG_FILE="$SERVER_ROOT/config.json"
 STATUS_FILE="${SERVER_ROOT}/docroot/status.txt"
 
+
+if [[ -f /etc/systemd/system/searchfox-router.service ]]; then
+    sudo systemctl stop searchfox-router
+    sudo rm /etc/systemd/system/searchfox-router.service
+else
+    pkill -f router/router.py || true
+fi
+
+# NOTE: codesearch is started by router.py and is automatically restarted
+#       when necessary.
 pkill -x codesearch || true
-pkill -f router/router.py || true
-pkill -x web-server || true
-pkill -x pipeline-server || true
+
+if [[ -f /etc/systemd/system/searchfox-web-server.service ]]; then
+    sudo systemctl stop searchfox-web-server
+    sudo rm /etc/systemd/system/searchfox-web-server.service
+else
+    pkill -x web-server || true
+fi
+
+if [[ -f /etc/systemd/system/searchfox-pipeline-server.service ]]; then
+    sudo systemctl stop searchfox-pipeline-server
+    sudo rm /etc/systemd/system/searchfox-pipeline-server.service
+else
+    pkill -x pipeline-server || true
+fi
 
 sleep 0.1s
 
@@ -31,10 +52,57 @@ sleep 0.1s
 LIVEGREP_VENV="$HOME/livegrep-venv"
 PATH="$LIVEGREP_VENV/bin:$PATH"
 
-nohup $MOZSEARCH_PATH/router/router.py $CONFIG_FILE $STATUS_FILE > $SERVER_ROOT/router.log 2> $SERVER_ROOT/router.err < /dev/null &
+if [[ $(systemctl is-system-running) == "running" ]]; then
+    cat >$SERVER_ROOT/searchfox-router.service <<EOF
+[Unit]
+Description=searchfox router
+After=network.target
+StartLimitIntervalSec=0
 
-export RUST_BACKTRACE=1
-nohup web-server $CONFIG_FILE $STATUS_FILE > $SERVER_ROOT/rust-server.log 2> $SERVER_ROOT/rust-server.err < /dev/null &
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=$(whoami)
+ExecStart=$(which python3) $MOZSEARCH_PATH/router/router.py $CONFIG_FILE $STATUS_FILE
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo mv $SERVER_ROOT/searchfox-router.service /etc/systemd/system/searchfox-router.service
+
+    sudo systemctl start searchfox-router
+else
+    nohup $MOZSEARCH_PATH/router/router.py $CONFIG_FILE $STATUS_FILE > $SERVER_ROOT/router.log 2> $SERVER_ROOT/router.err < /dev/null &
+fi
+
+if [[ $(systemctl is-system-running) == "running" ]]; then
+    cat >$SERVER_ROOT/searchfox-web-server.service <<EOF
+[Unit]
+Description=searchfox router
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=$(whoami)
+Environment="RUST_BACKTRACE=1"
+ExecStart=$(which web-server) $CONFIG_FILE $STATUS_FILE
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo mv $SERVER_ROOT/searchfox-web-server.service /etc/systemd/system/searchfox-web-server.service
+
+    sudo systemctl start searchfox-web-server
+else
+    export RUST_BACKTRACE=1
+    nohup web-server $CONFIG_FILE $STATUS_FILE > $SERVER_ROOT/rust-server.log 2> $SERVER_ROOT/rust-server.err < /dev/null &
+fi
 
 # Let's try and stop the pipeline-server from causing problems by setting a ulimit
 # on virtual memory usage.  We use du to figure out the total sizes of all of
@@ -59,12 +127,37 @@ ALLOWED_GROWTH_K=$((10 * 1024 * 1024))
 # 1410M, but it works out okay.
 PIPELINE_SERVER_VM_LIMIT_K=$(($MAPPED_FILES_USAGE_K + $STEADY_STATE_ASSUMED_K + $ALLOWED_GROWTH_K))
 
-# ulimit -v units are kilobytes
-ulimit -v $PIPELINE_SERVER_VM_LIMIT_K
+if [[ $(systemctl is-system-running) == "running" ]]; then
+    cat >$SERVER_ROOT/searchfox-pipeline-server.service <<EOF
+[Unit]
+Description=searchfox router
+After=network.target
+StartLimitIntervalSec=0
 
-# Note that we do not currently wait for the pipeline-server and it does not
-# write to the STATUS_FILE.
-nohup pipeline-server $CONFIG_FILE > $SERVER_ROOT/pipeline-server.log 2> $SERVER_ROOT/pipeline-server.err < /dev/null &
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=$(whoami)
+Environment="RUST_BACKTRACE=1"
+LimitAS=${PIPELINE_SERVER_VM_LIMIT_K}k
+ExecStart=$(which pipeline-server) $CONFIG_FILE
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo mv $SERVER_ROOT/searchfox-pipeline-server.service /etc/systemd/system/searchfox-pipeline-server.service
+
+    sudo systemctl start searchfox-pipeline-server
+else
+    # ulimit -v units are kilobytes
+    ulimit -v $PIPELINE_SERVER_VM_LIMIT_K
+
+    # Note that we do not currently wait for the pipeline-server and it does not
+    # write to the STATUS_FILE.
+    nohup pipeline-server $CONFIG_FILE > $SERVER_ROOT/pipeline-server.log 2> $SERVER_ROOT/pipeline-server.err < /dev/null &
+fi
 
 # If WAIT was passed, wait until the servers report they loaded.
 if [[ ${4:-} = "WAIT" ]]; then
