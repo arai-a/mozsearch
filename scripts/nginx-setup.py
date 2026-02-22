@@ -343,6 +343,14 @@ for repo in config['trees']:
         'gunzip on;',
     ])
 
+    location(f'~^/{repo}/raw/__GENERATED__/(?<path>.*)$', [
+        f'root {doc_root};',
+        f'try_files /objdir/{repo}/objdir/$path =404;',
+        'types { }',
+        'default_type text/plain;',
+        'add_header Cache-Control "must-revalidate";',
+    ])
+
     location(f'/{repo}/file-lists', [
         f'root {doc_root};',
         'try_files /file-lists/$uri =404;',
