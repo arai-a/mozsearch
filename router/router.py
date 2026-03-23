@@ -540,6 +540,9 @@ def identifier_search(search, tree_name, needle, complete, fold_case):
         search.add_qualified_results(q, results, line_modifier)
     log('  identifier_search "%s" - %f', needle, time.time() - t)
 
+def get_codesearch_stat_file(tree_name):
+    return config['trees'][tree_name]['codesearch_stat']
+
 def get_json_search_results(tree_name, query):
     try:
         search_string = query['q'][0]
@@ -637,7 +640,7 @@ def get_json_search_results(tree_name, query):
             search.add_results(expand_keys(tree_name, crossrefs.lookup_merging(tree_name, symbols)))
     elif 're' in parsed:
         path = parsed.get('pathre', '.*')
-        (substr_results, timed_out, codesearch_limit_hit) = codesearch.search(parsed['re'], fold_case, path, tree_name, context_lines)
+        (substr_results, timed_out, codesearch_limit_hit) = codesearch.search(get_codesearch_stat_file(tree_name), parsed['re'], fold_case, path, tree_name, context_lines)
         search.add_results({'Textual Occurrences': substr_results})
         hit_timeout |= timed_out
         if codesearch_limit_hit:
@@ -648,7 +651,7 @@ def get_json_search_results(tree_name, query):
     elif 'default' in parsed:
         work_limit = True
         path = parsed.get('pathre', '.*')
-        (substr_results, timed_out, codesearch_limit_hit) = codesearch.search(parsed['default'], fold_case, path, tree_name, context_lines)
+        (substr_results, timed_out, codesearch_limit_hit) = codesearch.search(get_codesearch_stat_file(tree_name), parsed['default'], fold_case, path, tree_name, context_lines)
         search.add_results({'Textual Occurrences': substr_results})
         hit_timeout |= timed_out
         if codesearch_limit_hit:
@@ -788,7 +791,7 @@ def get_json_sorch_results(tree_name, query):
     elif 'default' in parsed:
         work_limit = True
         path = parsed.get('pathre', '.*')
-        #(substr_results, timed_out) = codesearch.search(parsed['default'], fold_case, path, tree_name)
+        #(substr_results, timed_out) = codesearch.search(get_codesearch_stat_file(tree_name), parsed['default'], fold_case, path, tree_name)
         #search.add_results({'Textual Occurrences': substr_results})
         #hit_timeout |= timed_out
         if 'pathre' not in parsed:
@@ -948,7 +951,6 @@ config = json.load(open(config_fname))
 os.chdir(config['mozsearch_path'])
 
 crossrefs.load(config)
-codesearch.load(config)
 identifiers.load(config)
 nsresults.load(config)
 

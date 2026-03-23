@@ -20,6 +20,7 @@ use super::{CommitInfo, TextMatches, TextMatchesByFile, TreeInfo};
 use crate::abstract_server::lazy_crossref::perform_lazy_crossref;
 use crate::blame;
 use crate::file_format::analysis::{read_analyses, read_source};
+use crate::file_format::codesearch_stat;
 use crate::file_format::config::{TreeConfig, TreeConfigPaths, load};
 use crate::file_format::crossref_lookup::CrossrefLookupMap;
 use crate::file_format::identifiers::IdentMap;
@@ -380,7 +381,9 @@ impl AbstractServer for LocalIndex {
     ) -> Result<TextMatches> {
         let now = Instant::now();
 
-        let endpoint = format!("http://localhost:{}", self.config_paths.codesearch_port);
+        let stat = codesearch_stat::load(&self.config_paths.codesearch_stat);
+
+        let endpoint = format!("http://localhost:{}", stat.port);
         trace!("search_text: connecting to {}", endpoint);
 
         let mut client = CodeSearchClient::connect(endpoint).await?;

@@ -1,0 +1,7 @@
+---
+source: src/bin/test-index.rs
+assertion_line: 157
+expression: "format!(\"Pipeline Error: {:?}\", err)"
+input_file: inputs/web/search/big_cpp.cpp/abstractart__json
+---
+Pipeline Error: TransientProblem(ErrorDetails { layer: ServerLayer, message: "Server status of 504 Gateway Timeout" })

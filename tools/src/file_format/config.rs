@@ -114,9 +114,12 @@ pub struct TreeConfigPaths {
     pub oldgithub_repo: Option<String>,
     /// Absolute path to where we store the livegrep index.
     pub codesearch_path: String,
-    /// Manually allocated port number to host the livegrep server on, starting
-    /// from 8081 why not.
-    pub codesearch_port: u32,
+    /// Manually allocated port numbers to host the livegrep server on,
+    /// with two entries for switching between two processes, starting
+    /// from [8081, 8181] why not.
+    pub codesearch_ports: Vec<u32>,
+    /// Absolute path to where we store the codesearch status JSON file.
+    pub codesearch_stat: String,
     /// Definitions of SCIP-based indexes to ingest.  Currently it's expected
     /// that the build script will handle downloading or generating the indexes.
     #[serde(default)]

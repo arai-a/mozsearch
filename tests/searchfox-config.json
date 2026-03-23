@@ -17,7 +17,8 @@
       "github_repo": "https://github.com/mozsearch/mozsearch",
       "history_path": "$WORKING/searchfox/history",
       "codesearch_path": "$WORKING/searchfox/livegrep.idx",
-      "codesearch_port": 8081,
+      "codesearch_ports": [8082, 8182],
+      "codesearch_stat": "$WORKING/searchfox/codesearch.json",
       "scip_subtrees": {
         "rust": {
           "scip_index_path": "$WORKING/searchfox/objdir/tools/rust.scip",

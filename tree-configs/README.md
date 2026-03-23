@@ -2,8 +2,8 @@ Put config files for the trees you symlinked in `/trees` in here.  The
 assumed default config (which can list multiple trees) is `config.json`.
 
 A good starting point is probably `tests/searchfox-config.json`, noting
-that you probably want to increment the `codesearch_port` to start at
-port 8082 and keep incrementing from there.  The `tests` repo uses port
+that you probably want to increment the `codesearch_ports` to start at
+port [8081, 8181] and keep incrementing from there.  The `tests` repo uses port
 8080 and `searchfox` uses 8081, so this avoids edge cases if you are
 switching between what is indexed.
 

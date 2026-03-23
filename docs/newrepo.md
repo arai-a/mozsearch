@@ -86,12 +86,13 @@ and then modify the `config*.json` file with an entry for new repo. A basic one 
       "github_repo": "https://github.com/mozilla/glean",
       "objdir_path": "$WORKING/glean/objdir",
       "codesearch_path": "$WORKING/glean/livegrep.idx",
-      "codesearch_port": 8088
+      "codesearch_ports": [8081, 8181],
+      "codesearch_stat": "$WORKING/glean/codesearch.json"
     }
 ```
 
 A few things to note:
-* The `codesearch_port` should be unique in the file, so increment by one compared to whatever the last entry in the file is.
+* The `codesearch_ports` should be unique in the file, so increment by one compared to whatever the last entry in the file is.
 * Watch your commas! This is JSON, so the last entry should not be followed by a comma.
 * If the repo contains git submodules, you need to set `walk_submodules` to `False`. Otherwise the codesearch text indexing tool will attempt to index submodules and fail.
 

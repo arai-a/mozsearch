@@ -27,6 +27,7 @@ WAIT=${7:-}
 CONFIG_FILE="$SERVER_ROOT/config.json"
 STATUS_FILE="${SERVER_ROOT}/docroot/status.txt"
 
+pkill -f router/codesearch.py || true
 pkill -x codesearch || true
 pkill -f router/router.py || true
 pkill -x web-server || true
@@ -38,6 +39,15 @@ sleep 0.1s
 # TODO: remove after next provisioning
 LIVEGREP_VENV="$HOME/livegrep-venv"
 PATH="$LIVEGREP_VENV/bin:$PATH"
+
+nohup \
+    $MOZSEARCH_PATH/infrastructure/with-auto-restart.sh \
+    $MOZSEARCH_PATH $CHANNEL codesearch $DEST_EMAIL $LOG_DIR/codesearch.err \
+    \
+    $MOZSEARCH_PATH/router/codesearch.py $CONFIG_FILE start \
+    > $LOG_DIR/codesearch.log \
+    2> $LOG_DIR/codesearch.err \
+    < /dev/null &
 
 nohup \
     $MOZSEARCH_PATH/infrastructure/with-auto-restart.sh \
